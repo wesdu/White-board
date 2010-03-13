@@ -79,7 +79,40 @@
 			width:53px;
 			right:0px;
 			bottom:0px;
+			cursor:move;
+			visibility:invisible;
 		}
+		#log {
+			text-align:left;
+			padding-left:20px;
+			margin:0;
+			height:200px;
+			width:180px;
+			overflow-x:auto;
+			background:black;
+			color:green;
+			font-size:13px;
+			line-height:16px;
+			position:fixed;
+			left:5px;
+			bottom:20px;
+			z-index:999;
+			_bottom:expression(documentElement.scrollTop+documentElement.clientHeight-this.offsetHeight)+20px;
+    		_left:expression(documentElement.scrollLeft+documentElement.clientWidth-this.offsetWidth)+5px;
+		}
+		#log_button {
+			cursor:pointer;
+			height:18px;
+			width:198px;
+			position:fixed;
+			left:5px;
+			bottom:0px;
+			z-index:999;
+			_bottom:expression(documentElement.scrollTop+documentElement.clientHeight-this.offsetHeight);
+    		_left:expression(documentElement.scrollLeft+documentElement.clientWidth-this.offsetWidth)+5px;
+			border:1px solid #444444;
+		}
+		
 	</style>
     </head>
     <body>
@@ -91,7 +124,7 @@
     	</ul>
 		</div>
 		<div id='white-borad'>
-	
+			
 		</div>
 
     </body>
@@ -99,6 +132,73 @@
 <script src='js/raphael.js'></script>
 <script type="text/javascript">	
 ;(function(){
+	var Log= (function() {
+
+		
+		
+		return function(){
+			var d = document.createElement('div');
+			d.id = 'log';
+			document.body.appendChild(d);
+			var b = document.createElement('div');
+			b.id = 'log_button';
+			b.innerHTML = 'Clear'
+			this.l = d;
+			document.body.appendChild(b);
+			this.b = b;
+			var _this = this;
+			b['onclick'] = function(e){
+				_this.l.innerHTML = '';
+			};
+			window.onerror= function(){
+				var args= Array.prototype.slice.call(arguments);
+				
+				(_this.onerror).apply(_this,args);
+			};
+		}
+	})();
+	Log.prototype.log= function(s) {
+		if (s.indexOf('\n') == -1) {
+			var p = document.createTextNode(s);
+			var br = document.createElement('br');
+			this.l.appendChild(p);
+			this.l.appendChild(br);
+		}
+		else {
+			var a= s.split('\n');
+			for(var i=0;i<a.length;i++) {
+				var p = document.createTextNode(a[i]);
+				var br = document.createElement('br');
+				this.l.appendChild(p);
+				this.l.appendChild(br);
+			}
+		}
+	}
+	Log.prototype.onerror= function (sMessage,sUrl,sLine) {
+			var str = '';
+			str += '错误信息:' + sMessage + '\n';
+			str += '错误地址:' + sUrl + '\n';
+			str += '错误行数:' + sLine + '\n';
+			
+			str += '<=调用堆栈=>\n';
+			var func = window.onerror.caller;
+			var index = 1;
+			while(func!=null){
+				str += '第' + index + '个函数：' + func + '\n';
+				str += '第' + index + '个函数：参数表：'
+				for(var i=0;i<func.arguments.length;i++) {
+					str += func.arguments[i] + ',';
+				}
+				str += '\n==========\n';
+				func = func.caller;
+				index++;
+			}
+			this.log(str);
+			return true;
+	}
+	
+	var log= new Log();
+	
 	var id= function(s) {
 		return document.getElementById(s);
 	}
@@ -123,6 +223,7 @@
 			e.preventDefault= e.preventDefault|| function() {
 				e.returnValue= false;
 			};
+			
 			e.pageX= e.clientX + (document.documentElement.scrollLeft||document.body.scrollLeft);
 			e.pageY= e.clientY + (document.documentElement.scrollTop||document.body.scrollTop);			
 		}
@@ -178,8 +279,8 @@
 			this.x= option.x || 0;
 			this.y= option.y || 0;
 			this.z= option.z || 0;
-			this.width= option.width || 100; //no 'px'
-			this.height= option.height || 100;
+			this.width= option.width || 53; //no 'px'
+			this.height= option.height || 50;
 			this.type= option.type || null;
 			this.src= option.src || null;
 			if(this.type == null) {
@@ -201,6 +302,8 @@
 			var scale= document.createElement('div');
 			scale.className= 'scale';
 			div.appendChild(scale);
+			div.style.width= this.width+'px';
+			div.style.height= this.height+'px';
 			white_board_el.appendChild(div);
 			Whiteborad.z= Whiteborad.z+1;
 			div.style.zIndex= Whiteborad.z;
@@ -231,12 +334,12 @@
 		doscale:function() {
 			var _this= this;
 			_.on(_this.scale,'mousedown',function(e) {
+				log.log("mouse down");
 				e.stopPropagation();
 				var ox= e.pageX;
 				var oy= e.pageY;
 				
-				_.on(_this.scale,'mousemove',function(e){
-					
+				_.on(document,'mousemove',function(e){
 					e.preventDefault();
 					var w= e.pageX-ox;
 					var h= e.pageY-oy;
@@ -248,9 +351,10 @@
 					}
 					
 				});
-				_.on(_this.scale,'mouseup',function(e){
-					
-					_.offAll(_this.scale,'mousemove');
+				_.on(document,'mouseup',function(e){
+					_.offAll(document,'mousemove');
+					log.log("mouse up");
+					_.offAll(document,'mouseup');
 				});
 			});
 		},
