@@ -1,0 +1,365 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+	
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>web-base real-time cooprative white board</title>
+	<style type="text/css">
+		body {
+			margin:0 auto;
+			padding:0 0;
+			text-align:center;
+			width:800px;
+		}
+		#header {
+			width:800px;
+			margin-bottom:10px;
+			height:auto;
+		}
+		#header ul {
+			margin:0;
+			padding:0;
+			height:72px;
+			list-style:none;
+		}
+		#header li {
+			float:left;
+			margin-right:10px;
+			height:71px;
+			width:79px;
+			cursor:pointer;
+		}
+		a, a:active, a:hover, a:focus, a:link, a:visited {
+			text-decoration:none;
+		}
+		#rich_cube {
+			background:no-repeat url(pic/rich_cube.png);
+		}
+		#p {
+			background:no-repeat url(pic/p.png);
+		}
+		#arc {
+			background:no-repeat url(pic/arc.png);
+		}
+		a.header-a:hover #rich_cube,#rich_cube:hover {
+			background:no-repeat url(pic/rich_cube2.png);
+		}
+		a.header-a:hover #p,#p:hover {
+			background:no-repeat url(pic/p2.png);
+		}
+		a.header-a:hover #arc,#arc:hover {
+			background:no-repeat url(pic/arc2.png);
+		}
+		#white-borad {
+			z-index:0;
+			position:relative;
+			width:800px;
+			height:600px;
+			border:dashed 2px #444643;
+			cursor:pointer;
+		}
+
+		#sample {
+			position:absolute;
+			top:100px;
+			left:100px;
+			height:100px;
+			width:100px;
+			border:solid 1px black;
+		}
+		.nn {
+			position:absolute;
+			border:dashed 3px #A0A2A0;
+		}
+		.scale {
+			position:absolute;
+			background:no-repeat url(pic/scale.png);
+			height:50px;
+			width:53px;
+			right:0px;
+			bottom:0px;
+		}
+	</style>
+    </head>
+    <body>
+    	<div id="header">
+    	<ul>
+    		<a class="header-a" href="#"><li id="rich_cube" ></li></a>
+    		<a class="header-a" href="#"><li id="p" ></li></a>
+    		<a class="header-a" href="#"><li id="arc" ></li></a>
+    	</ul>
+		</div>
+		<div id='white-borad'>
+	
+		</div>
+
+    </body>
+</html>
+<script src='js/raphael.js'></script>
+<script type="text/javascript">	
+;(function(){
+	var id= function(s) {
+		return document.getElementById(s);
+	}
+	var _= function(o) {
+		var _o= o;
+		return o;
+	};
+	Array.prototype.each= function(func) {
+		for(var i=0;i<this.length;i++) {
+			func(this[i],i,this);
+		}
+	};
+	var fixE= function(e) {
+		if(!e) {
+			var e= e||window.event;
+			e.target= e.target|| e.srcElement;
+			e.layerX= e.layerX|| e.offsetX;
+			e.layerY= e.layerY|| e.offsetY;
+			e.stopPropagation= e.stopPropagation || function() {
+				e.cancelBubble= true;
+			};
+			e.preventDefault= e.preventDefault|| function() {
+				e.returnValue= false;
+			};
+			e.pageX= e.clientX + (document.documentElement.scrollLeft||document.body.scrollLeft);
+			e.pageY= e.clientY + (document.documentElement.scrollTop||document.body.scrollTop);			
+		}
+
+		return e;
+	}
+	_.addEvent= function(el,ev,func) {
+		if(!el.evs){
+			el.evs= {};
+		}
+		if(!el.evs[ev]){
+			el.evs[ev]= [];
+		}
+		el.evs[ev].push(func);
+		el['on'+ev]= function(e) {
+			var ee= fixE(e);
+			_(el.evs[ev]).each(function(f){
+				f(ee);
+			});
+		}
+	};
+	_.on= _.addEvent; //short cut
+	_.removeAllEvent= function(el,ev) {
+		
+		
+		el['on' + ev] = null;
+		
+		if(el.evs[ev]) {
+			el.evs[ev]= null;
+		}
+		
+	};
+	_.offAll= _.removeAllEvent;
+	_.removeEvent= function(el,ev,func) {
+		
+	};
+	_.off= _.removeEvent;
+	//var paper = Raphael("white-borad", 800, 600);
+	//配置
+	var Whiteborad= {
+		z:2,
+		scale:[53,50] //scale图标的大小
+	};
+	var white_board_el= id('white-borad');//white board element
+	
+	var RichCube= (function() {
+		
+		return function(option) {
+			if(option===undefined) {
+				option={};
+			}
+			this.el= null; //element
+			this.x= option.x || 0;
+			this.y= option.y || 0;
+			this.z= option.z || 0;
+			this.width= option.width || 100; //no 'px'
+			this.height= option.height || 100;
+			this.type= option.type || null;
+			this.src= option.src || null;
+			if(this.type == null) {
+				this.init();
+			}
+			else {
+				this.recall();
+			}
+		};
+	})();
+	RECORD= {
+		rich_cube:[],
+		p:[],
+		arc:[]
+	};//for record [{},]
+	RichCube.prototype= { 
+		init:function() {
+			var div= document.createElement('div');
+			var scale= document.createElement('div');
+			scale.className= 'scale';
+			div.appendChild(scale);
+			white_board_el.appendChild(div);
+			Whiteborad.z= Whiteborad.z+1;
+			div.style.zIndex= Whiteborad.z;
+			scale.style.zIndex= Whiteborad.z+1;
+			div.id= Whiteborad.z; // id
+			div.className= 'nn';
+			this.scale= scale;
+			this.el= div;
+			this.doscale();
+		},
+		record:function() {
+			//do something with RECODE	
+			RECORD['rich_cube'].push({
+				x:this.x,
+				y:this.y,
+				z:this.z,
+				width:this.width,
+				height:this.height,
+				type:this.type,
+				src:this.src
+			});
+		},
+		recall:function() {
+			//do init();
+				
+			//do record();
+		},
+		doscale:function() {
+			var _this= this;
+			_.on(_this.scale,'mousedown',function(e) {
+				e.stopPropagation();
+				var ox= e.pageX;
+				var oy= e.pageY;
+				
+				_.on(_this.scale,'mousemove',function(e){
+					
+					e.preventDefault();
+					var w= e.pageX-ox;
+					var h= e.pageY-oy;
+					
+					if ( Math.abs(w) > 3 || Math.abs(h) > 3) {
+						ox= e.pageX;
+						oy= e.pageY;
+						_this.setsize(_this.width+w,_this.height+h);
+					}
+					
+				});
+				_.on(_this.scale,'mouseup',function(e){
+					
+					_.offAll(_this.scale,'mousemove');
+				});
+			});
+		},
+		setxy:function(x,y) {
+			this.el.style['left'] = x + 'px';
+			this.el.style['top'] = y + 'px';
+		},
+		setsize:function(width,height) {
+			if (width > 0) {
+				this.el.style['width'] = width + 'px';
+			}
+			this.width= width;
+			if (height > 0) {
+				this.el.style['height'] = height + 'px';
+			}
+			this.height= height;
+		},
+		settop:function() {
+			Whiteborad.z= Whiteborad.z+1;
+			this.el.style['zIndex'] = Whiteborad.z;
+			this.scale.style['zIndex'] = Whiteborad.z + 1;
+		}
+	}
+	var P= (function() {
+		
+		return function(option) {
+			//	
+		};
+	})();
+	var Arc= (function() {
+		
+		return function(option) {
+			//
+		};
+	})();
+	var router= {
+		'rich_cube':RichCube,
+		'p':P,
+		'arc':Arc
+	}
+	RichCube.addListener= function() {
+		_.on(white_board_el,'mousedown',function(e){
+			e.preventDefault();
+			var cube= new RichCube();
+			var orignX=e.layerX,
+				orignY=e.layerY;
+			var oldX= 0,
+				oldY= 0;
+			cube.setxy(orignX,orignY);
+			_.on(white_board_el,'mousemove',function(e){
+				e.preventDefault();
+				
+				var _width= (e.layerX-orignX-15);
+				var _height= (e.layerY-orignY-15);
+				if ( Math.abs(e.layerX - oldX) > 3 || Math.abs(e.layerY - oldY) > 3) {
+					oldX= e.layerX;
+					oldY= e.layerY;
+					cube.setsize(_width,_height);
+				}
+				
+			
+				//var c = paper.path('M'+orignX+' '+orignY+'L'+e.layerX+' '+e.layerY);
+				//c.toFront();
+			});
+			_.on(white_board_el,'mouseup',function(e) {
+				
+				//cube.record();
+				_.offAll(white_board_el,'mousemove');
+			});
+		});
+	};
+	RichCube.removeListener= function() {
+		_.offAll(white_board_el,'mousedown');
+	};
+	P.addListener= function() {
+		
+	};
+	P.removeListener= function() {
+		
+	};
+	Arc.addListener= function() {
+		
+	};
+	Arc.removeListener= function() {
+		
+	};
+	_(['rich_cube','p','arc']).each(function(s,index,all){
+		id(s).onclick= function() {
+			if (this.style.background.indexOf('2')== -1) {
+				this.style.background = 'no-repeat url(pic/' + s + '2.png)';
+				router[s].addListener();
+			}
+			else {
+				this.style.background = 'no-repeat url(pic/' + s + '.png)';
+				router[s].removeListener();
+			}
+			all.each(function(t){
+				if (t!=s) {
+					id(t).style.background= 'no-repeat url(pic/'+t+'.png)';
+					router[t].removeListener();
+				}
+			}) ;
+		};
+	});
+
+
+	
+
+
+})();
+
+</script>
